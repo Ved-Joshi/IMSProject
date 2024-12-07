@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IMS Dashboard</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <header>
+        <h1>Inventory Management System Dashboard</h1>
+    </header>
+
+    <main>
+        <!-- Section for Data Tables -->
+        <section>
+            <h2>Data Tables</h2>
+            <div id="tables-container">
+                <h3>Sales for November 2024</h3>
+                <div id="table-sales-november2024"></div>
+                
+                <h3>Year-over-Year Sales Comparison</h3>
+                <div id="table-sales-comparison"></div>
+                
+                <h3>Best Selling Product</h3>
+                <div id="table-best-seller"></div>
+                
+                <h3>Worst Selling Product</h3>
+                <div id="table-worst-seller"></div>
+                
+                <h3>Most Profitable Vendor</h3>
+                <div id="table-profitable-vendor"></div>
+                
+                <h3>Products Below Reorder Threshold</h3>
+                <div id="table-products-reorder"></div>
+                
+                <h3>Products Not Sold in Last 3 Months</h3>
+                <div id="table-products-unsold"></div>
+                
+                <h3>Monthly Sales Breakdown</h3>
+                <div id="table-monthly-breakdown"></div>
+                
+                <h3>Top Spending Customers</h3>
+                <div id="table-top-spenders"></div>
+                
+                <h3>Vendor Orders Analysis</h3>
+                <div id="table-vendor-orders-analysis"></div>
+            </div>
+        </section>
+
+        <!-- Section for Visualizations -->
+        <section>
+            <h2>Visualizations</h2>
+            
+            <h3>Vendor Order Status (Pie Chart)</h3>
+            <canvas id="pieChart" width="400" height="200"></canvas>
+            
+            <h3>Monthly Revenue Trend (Line Chart)</h3>
+            <canvas id="lineChart" width="400" height="200"></canvas>
+            
+            <h3>Revenue by Vendor (Bar Chart)</h3>
+            <canvas id="barChart" width="400" height="200"></canvas>
+        </section>
+    </main>
+
+    <script>
+        async function fetchData(apiEndpoint) {
+            try {
+                const response = await fetch(apiEndpoint);
+                const data = await response.json();
+                return data;
+            } catch (error) {
+                console.error(`Error fetching data from ${apiEndpoint}:`, error);
+                return null;
+            }
+        }
+
+        function renderTable(containerId, columns, rows) {
+            const container = document.getElementById(containerId);
+            let tableHTML = '<table><thead><tr>';
+
+            columns.forEach(column => {
+                tableHTML += `<th>${column}</th>`;
+            });
+
+            tableHTML += '</tr></thead><tbody>';
+
+            rows.forEach(row => {
+                tableHTML += '<tr>';
+                columns.forEach(column => {
+                    tableHTML += `<td>${row[column] || ''}</td>`;
+                });
+                tableHTML += '</tr>';
+            });
+
+            tableHTML += '</tbody></table>';
+            container.innerHTML = tableHTML;
+        }
+
+        function renderPieChart(data) {
+            const ctx = document.getElementById('pieChart').getContext('2d');
+            const labels = data.map(item => item['Order Status']);
+            const values = data.map(item => item['Order Count']);
+
+            new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Vendor Order Status',
+                        data: values,
+                        backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40'],
+                    }],
+                },
+            });
+        }
+
+        function renderLineChart(data) {
+            const ctx = document.getElementById('lineChart').getContext('2d');
+            const labels = data.map(item => `${item['Year']}-${item['Month']}`);
+            const values = data.map(item => item['Revenue']);
+
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Monthly Revenue Trend',
+                        data: values,
+                        fill: false,
+                        borderColor: 'blue',
+                        tension: 0.1
+                    }],
+                },
+            });
+        }
+
+        function renderBarChart(data) {
+            const ctx = document.getElementById('barChart').getContext('2d');
+            const labels = data.map(item => item['Vendor']);
+            const values = data.map(item => item['Revenue']);
+
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Revenue by Vendor',
+                        data: values,
+                        backgroundColor: 'purple'
+                    }],
+                },
+            });
+        }
+
+        async function loadData() {
+            const queries = [
+                { id: 'table-sales-november2024', endpoint: '/api/sales/november2024' },
+                { id: 'table-sales-comparison', endpoint: '/api/sales/comparison' },
+                { id: 'table-best-seller', endpoint: '/api/sales/best-seller' },
+                { id: 'table-worst-seller', endpoint: '/api/sales/worst-seller' },
+                { id: 'table-profitable-vendor', endpoint: '/api/vendors/profitable' },
+                { id: 'table-products-reorder', endpoint: '/api/products/reorder' },
+                { id: 'table-products-unsold', endpoint: '/api/products/unsold' },
+                { id: 'table-monthly-breakdown', endpoint: '/api/sales/monthly-breakdown' },
+                { id: 'table-top-spenders', endpoint: '/api/customers/top-spenders' },
+                { id: 'table-vendor-orders-analysis', endpoint: '/api/vendors/orders-analysis' },
+            ];
+
+            for (const query of queries) {
+                const data = await fetchData(query.endpoint);
+                if (data) {
+                    renderTable(query.id, data.columns, data.data);
+                }
+            }
+
+            // Load chart data
+            const pieData = await fetchData('/api/charts/vendor-order-status');
+            if (pieData) renderPieChart(pieData.data);
+
+            const lineData = await fetchData('/api/charts/monthly-revenue-trend');
+            if (lineData) renderLineChart(lineData.data);
+
+            const barData = await fetchData('/api/charts/revenue-by-vendor');
+            if (barData) renderBarChart(barData.data);
+        }
+
+        window.onload = loadData;
+    </script>
+</body>
+</html>
